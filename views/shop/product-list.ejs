@@ -9,27 +9,27 @@
                 <% if (products.length > 0) { %>
                     <div class="grid">
                         <% for (let product of products) { %>
+                        <% const {id, title, imageUrl, price, description} = product %>
                             <article class="card product-item">
                                 <header class="card__header">
                                     <h1 class="product__title">
-                                        <%= product.title %>
+                                        <%= title %>
                                     </h1>
                                 </header>
                                 <div class="card__image">
-                                    <img src="<%= product.imageUrl %>" alt="<%= product.title %>">
+                                    <img src="<%= imageUrl %>" alt="<%= title %>">
                                 </div>
                                 <div class="card__content">
                                     <h2 class="product__price">$
-                                        <%= product.price %>
+                                        <%= price %>
                                     </h2>
                                     <p class="product__description">
-                                        <%= product.description %>
+                                        <%= description %>
                                     </p>
                                 </div>
                                 <div class="card__actions">
-                                    <form action="/add-to-cart" method="POST">
-                                        <button class="btn">Add to Cart</button>
-                                    </form>
+                                    <a href="/products/<%= id %> " class="btn">Details</a>
+                                        <button product-id="<%= id %>" class="btn add-to-cart-btn">Add to Cart</button>
                                 </div>
                             </article>
                             <% } %>
