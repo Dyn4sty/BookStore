@@ -22,13 +22,13 @@ const addToCartHandler = (event) => {
     },
     body: JSON.stringify({ productId }) ,
   })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log("Success:", data);
-    })
-    .catch((error) => {
-      console.error("Error:", error);
-    });
+    // .then((response) => response.json())
+    // .then((data) => {
+    //   console.log("Success:", data);
+    // })
+    // .catch((error) => {
+    //   console.error("Error:", error);
+    // });
 };
 
 backdrop.addEventListener("click", backdropClickHandler);
