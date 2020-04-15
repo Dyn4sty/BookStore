@@ -72,35 +72,22 @@ postCartDeleteProduct = (req, res) => {
     .catch((err) => console.log(err));
 };
 
-// getOrders = (req, res, next) => {
-//   res.render("shop/orders", {
-//     pageTitle: "Your Orders",
-//     path: "/orders",
-//   });
-// };
+getOrders = (req, res, next) => {
+  req.user.getOrders().then(orders => {
+    console.log(orders)
+    res.render("shop/orders", {
+      orders,
+      pageTitle: "Your Orders",
+      path: "/orders",
+    });
+  })
+};
 
-// postOrders = (req, res) => {
-//   req.user
-//     .getCart()
-//     .then((cart) => {
-//       return cart.getProducts();
-//     })
-//     .then((products) => {
-//       return req.user
-//         .createOrder()
-//         .then((order) => {
-//           order.addProducts(
-//             products.map((product) => {
-//               product.orderItem = { quantity: product.cartItem.quantity };
-//               return product;
-//             })
-//           );
-//         })
-//         .catch((err) => console.log(err));
-//     })
-//     .then(() => res.redirect("/orders"))
-//     .catch((err) => console.log(err));
-// };
+postOrders = (req, res) => {
+  req.user.createOrder()
+    .then(() => res.redirect("/orders"))
+    .catch((err) => console.log(err));
+};
 
 module.exports = {
   getProducts,
@@ -109,6 +96,6 @@ module.exports = {
   getCart,
   postCart,
   postCartDeleteProduct,
-  // getOrders,
-  // postOrders,
+  getOrders,
+  postOrders,
 };
