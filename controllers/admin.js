@@ -9,13 +9,15 @@ getAddProduct = (req, res, next) => {
 };
 
 postAddProduct = (req, res, next) => {
-  req.user.createProduct(req.body)
-    .then((response) => res.redirect("/products"))
+  const product = new Product({...req.body, userId: req.user._id});
+  product
+    .save()
+    .then(() => res.redirect("/products"))
     .catch((err) => console.log(err));
 };
 
 getProducts = (req, res, next) => {
-  Product.findAll()
+  Product.fetchAll()
     .then((products) => {
       res.render("admin/products", {
         products,
@@ -30,7 +32,7 @@ getEditProduct = (req, res) => {
   const { edit } = req.query;
   if (edit !== "true") return res.redirect("/");
   const { productId } = req.params;
-  Product.findByPk(productId).then((product) => {
+  Product.findById(productId).then((product) => {
     if (!product) res.redirect("/");
     res.render("admin/edit-product", {
       product,
@@ -43,7 +45,7 @@ getEditProduct = (req, res) => {
 
 postEditProduct = (req, res, next) => {
   const { productId, ...propsToUpdate } = req.body;
-  Product.update(propsToUpdate, { where: { id: productId } })
+  Product.updateById(productId, propsToUpdate)
     .then((result) => {
       console.log("UPDATED PRODUCT!");
       res.redirect("/admin/products");
@@ -53,7 +55,7 @@ postEditProduct = (req, res, next) => {
 
 postDeleteProduct = (req, res, next) => {
   const { productId } = req.body;
-  Product.destroy({ where: { id: productId } })
+  Product.deleteById(productId)
     .then((result) => {
       if (result) console.log("PRODUCT Removed!");
       res.redirect("/admin/products");

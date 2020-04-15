@@ -1,30 +1,36 @@
-const Sequelize = require("sequelize");
+const { getDb } = require("../util/database");
+const { ObjectId } = require("mongodb");
 
-const sequelize = require("../util/database");
+class Product {
+  constructor(props) {
+    Object.assign(this, props);
+  }
 
-const Product = sequelize.define("product", {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true,
-  },
-  title: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  price: {
-    type: Sequelize.DOUBLE,
-    allowNull: false,
-  },
-  imageUrl: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  description: {
-    type: Sequelize.STRING(1000),
-    allowNull: false,
-  },
-});
+  save() {
+    const db = getDb();
+    return db.collection("products").insertOne(this);
+  }
+
+  static fetchAll() {
+    const db = getDb();
+    return db.collection("products").find({}).toArray();
+  }
+  static findById(productId) {
+    const db = getDb();
+    return db
+      .collection("products")
+      .findOne({ _id: ObjectId(productId) })
+  }
+  static updateById(productId, props) {
+    const db = getDb();
+    return db
+      .collection("products")
+      .updateOne({ _id: ObjectId(productId) }, { $set: props });
+  }
+  static deleteById(productId) {
+    const db = getDb();
+    return db.collection("products").deleteOne({ _id: ObjectId(productId) });
+  }
+}
 
 module.exports = Product;
