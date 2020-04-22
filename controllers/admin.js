@@ -5,11 +5,12 @@ getAddProduct = (req, res, next) => {
     pageTitle: "Add Product",
     path: "/admin/add-product",
     editing: false,
+    isAuthenticated: req.session.isLoggedIn,
   });
 };
 
 postAddProduct = (req, res, next) => {
-  const product = new Product({...req.body, userId: req.user._id});
+  const product = new Product(req.body);
   product
     .save()
     .then(() => res.redirect("/products"))
@@ -17,12 +18,13 @@ postAddProduct = (req, res, next) => {
 };
 
 getProducts = (req, res, next) => {
-  Product.fetchAll()
+  Product.find()
     .then((products) => {
       res.render("admin/products", {
         products,
         pageTitle: "Admin Products",
         path: "/admin/products",
+        isAuthenticated: req.session.isLoggedIn,
       });
     })
     .catch((err) => console.log(err));
@@ -39,13 +41,14 @@ getEditProduct = (req, res) => {
       pageTitle: "Edit Product",
       path: "/admin/edit-product",
       editing: edit,
+      isAuthenticated: req.session.isLoggedIn,
     });
   });
 };
 
 postEditProduct = (req, res, next) => {
   const { productId, ...propsToUpdate } = req.body;
-  Product.updateById(productId, propsToUpdate)
+  Product.updateOne({ _id: productId }, propsToUpdate)
     .then((result) => {
       console.log("UPDATED PRODUCT!");
       res.redirect("/admin/products");
@@ -55,7 +58,7 @@ postEditProduct = (req, res, next) => {
 
 postDeleteProduct = (req, res, next) => {
   const { productId } = req.body;
-  Product.deleteById(productId)
+  Product.deleteOne({ _id: productId })
     .then((result) => {
       if (result) console.log("PRODUCT Removed!");
       res.redirect("/admin/products");

@@ -1,95 +1,88 @@
-const { getDb } = require("../util/database");
-const { ObjectId } = require("mongodb");
+const mongoose = require("mongoose");
 
-class User {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+const { Schema } = mongoose;
+const userSchema = new Schema({
+  email: {
+    type: String,
+    required: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  cart: {
+    products: [
+      {
+        productId: Schema.Types.ObjectId,
+        _id: {
+          type: Schema.Types.ObjectId,
+          ref: "Product",
+          required: true,
+        },
+        quantity: { type: Number, required: true },
+      },
+    ],
+  },
+});
 
-  save() {
-    const db = getDb();
-    return db.collection("users").insertOne(this);
-  }
 
-  getCart() {
-    // Fetching the cart
-    const db = getDb();
-    let { products } = this.cart;
-
-    /* 
-        getting the cart Products ids, Fetching the Actual Items from DB.
-        mapping thorught the actual items and adding the quantity from the cart.
-        map returning array of promises, Promise.All return promise of the solved array. 
-        while mapping, if the item dosent exist anymore, we remove him from the db.
-     */
-
-    return Promise.all(
-      products.map((cartItem) => {
-        return db
-          .collection("products")
-          .findOne({ _id: ObjectId(cartItem._id) })
-          .then((shopProduct) => {
-            if (!shopProduct) this.deleteItemFromCart(cartItem._id);
-            let newCartItem = { ...shopProduct, quantity: cartItem.quantity };
-            return newCartItem;
-          })
-          .catch((err) => console.log(err));
-      })
-    ).then((products) => {
-      // --- checking for non-existing products ---
-
-      products = products.filter((item) => item._id);
-      return products;
-    });
-  }
-
-  addToCart(cartItemToAdd) {
-    const db = getDb();
-    // Item Exists in the cart?
-    const existingCartItem = this.cart.products.find(
-      (cartItem) => cartItem._id.toString() === cartItemToAdd._id.toString()
-    );
-
-    // True. -> Incrementing the quantity
-    if (existingCartItem) {
-      this.cart.products = this.cart.products.map((cartItem) =>
-        cartItem._id.toString() === cartItemToAdd._id.toString()
-          ? {
-              _id: cartItem._id,
-              quantity: cartItem.quantity + 1,
-            }
-          : cartItem
-      );
-    }
-    // False -> Add to cart.
-    else {
-      this.cart.products = [
-        ...this.cart.products,
-        { _id: cartItemToAdd._id, quantity: 1 },
-      ];
-    }
-    return db
-      .collection("users")
-      .updateOne({ _id: Object(this._id) }, { $set: { cart: this.cart } });
-  }
-
-  deleteItemFromCart(productId) {
-    const db = getDb();
-    const updateCartItems = this.cart.products.filter(
-      (cartItem) => cartItem._id.toString() !== productId.toString()
-    );
-    return db
-      .collection("users")
-      .updateOne(
-        { _id: Object(this._id) },
-        { $set: { cart: { products: updateCartItems } } }
-      );
-  }
-
-  static findById(userId) {
-    const db = getDb();
-    return db.collection("users").findOne({ _id: ObjectId(userId) });
-  }
+// Cart Methods //
+userSchema.methods.clearCart = function() {
+  this.cart.products = [];
+  return this.save()
 }
+userSchema.methods.addToCart = function (cartItemToAdd) {
+  // if (!cartItemToAdd) return res.redirect("/cart");
+  const existingCartItem = this.cart.products.find(
+    (cartItem) => cartItem._id.toString() === cartItemToAdd._id.toString()
+  );
+  if (existingCartItem) {
+    this.cart.products = this.cart.products.map((cartItem) =>
+      cartItem._id.toString() === cartItemToAdd._id.toString()
+        ? {
+            productId: cartItemToAdd._id,
+            _id: cartItem._id,
+            quantity: cartItem.quantity + 1,
+          }
+        : cartItem
+    );
+  } else {
+    this.cart.products = [
+      ...this.cart.products,
+      { productId: cartItemToAdd._id, _id: cartItemToAdd._id, quantity: 1 },
+    ];
+  }
+  return this.save();
+};
 
-module.exports = User;
+userSchema.methods.getCart = function () {
+  return this.populate("cart.products._id")
+    .execPopulate()
+    .then(({ cart: { products } }) => {
+      return (products = products
+        .filter((cartItem) => {
+          if (!cartItem._id) {
+            req.user.deleteItemFromCart(cartItem.productId);
+            return false;
+          }
+          return true;
+        })
+        .map((cartItem) => {
+          const { ...itemProps } = cartItem._id._doc;
+          return {
+            ...itemProps,
+            quantity: cartItem.quantity,
+            productId: cartItem.productId,
+          };
+        }));
+    });
+};
+userSchema.methods.deleteItemFromCart = function (productId) {
+  const updateCartItems = this.cart.products.filter((cartItem) => {
+    cartItem.productId.toString() !== productId.toString();
+  });
+  this.cart.products = updateCartItems;
+  return this.save();
+};
+
+module.exports = mongoose.model("User", userSchema);
