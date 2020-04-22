@@ -1,36 +1,24 @@
-const { getDb } = require("../util/database");
-const { ObjectId } = require("mongodb");
+const mongoose = require("mongoose");
 
-class Product {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+const { Schema } = mongoose;
+const productSchema = new Schema({
+  title: {
+    type: String,
+    required: true,
+  },
+  price: {
+    type: Number,
+    required: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
 
-  save() {
-    const db = getDb();
-    return db.collection("products").insertOne(this);
-  }
+  imageUrl: {
+    type: String,
+    required: true,
+  },
+});
 
-  static fetchAll() {
-    const db = getDb();
-    return db.collection("products").find({}).toArray();
-  }
-  static findById(productId) {
-    const db = getDb();
-    return db
-      .collection("products")
-      .findOne({ _id: ObjectId(productId) })
-  }
-  static updateById(productId, props) {
-    const db = getDb();
-    return db
-      .collection("products")
-      .updateOne({ _id: ObjectId(productId) }, { $set: props });
-  }
-  static deleteById(productId) {
-    const db = getDb();
-    return db.collection("products").deleteOne({ _id: ObjectId(productId) });
-  }
-}
-
-module.exports = Product;
+module.exports = mongoose.model("Product", productSchema);
