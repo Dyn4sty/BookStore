@@ -6,7 +6,7 @@ const MongoDBStore = require("connect-mongodb-session")(session);
 const csrfProtection = require("csurf")();
 const User = require("./models/user");
 const errorController = require("./controllers/error");
-
+const flash = require("connect-flash");
 const app = express();
 require("dotenv").config();
 
@@ -39,6 +39,7 @@ app.use(
     store,
   })
 );
+app.use(flash())
 // CSRF Token
 app.use(csrfProtection);
 app.use((req, res, next) => {
