@@ -1,5 +1,17 @@
-const User = require("../models/user");
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const nodemailer = require("nodemailer");
+
+const User = require("../models/user");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_ADDRESS,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
 getLogin = (req, res, next) => {
   if (req.session.isLoggedIn) return res.redirect("/products");
   res.render("auth/login", {
@@ -8,6 +20,7 @@ getLogin = (req, res, next) => {
     errorMessage: req.flash("error"),
   });
 };
+
 getSignup = (req, res, next) => {
   if (req.session.isLoggedIn) return res.redirect("/products");
   res.render("auth/signup", {
@@ -18,6 +31,7 @@ getSignup = (req, res, next) => {
 };
 
 postLogin = (req, res, next) => {
+  if (req.session.isLoggedIn) return res.redirect("/products");
   const { email, password } = req.body;
   User.findOne({ email })
     .then((user) => {
@@ -49,6 +63,7 @@ postLogout = (req, res, next) => {
 };
 
 postSignup = (req, res, next) => {
+  if (req.session.isLoggedIn) return res.redirect("/products");
   const { email, password, confirmPassword } = req.body;
   if (!email || !password || password !== confirmPassword) {
     req.flash("error", "Incorrect form submission.");
@@ -56,7 +71,10 @@ postSignup = (req, res, next) => {
   }
   User.findOne({ email })
     .then((userDoc) => {
-      if (userDoc) return res.redirect("/signup");
+      if (userDoc) {
+        req.flash("error", "Email is already used.");
+        return res.redirect("/signup");
+      }
       bcrypt
         .hash(password, 10)
         .then((hashedPassword) => {
@@ -65,11 +83,118 @@ postSignup = (req, res, next) => {
             password: hashedPassword,
             cart: { products: [] },
           });
-          return user.save();
+          user.save().then((result) => {
+            res.redirect("/login");
+            var mailOptions = {
+              from: process.env.EMAIL_ADDRESS,
+              to: email,
+              subject: "Signup Succeeded",
+              text: "That was easy!",
+            };
+
+            transporter.sendMail(mailOptions, (error, info) => {
+              console.log(error ? error : `Email sent: ${info.response}`);
+            });
+          });
         })
         .catch((err) => console.log(err));
     })
-    .then((result) => res.redirect("/login"))
+    .catch((err) => console.log(err));
+};
+
+getReset = (req, res, next) => {
+  if (req.session.isLoggedIn) return res.redirect("/products");
+  res.render("auth/reset", {
+    path: "/reset",
+    pageTitle: "Reset Password",
+    errorMessage: req.flash("error"),
+  });
+};
+
+postReset = (req, res, next) => {
+  const { email } = req.body;
+  crypto.randomBytes(32, (error, buffer) => {
+    if (error) return res.redirect("/reset");
+    const token = buffer.toString("hex");
+    User.findOne({ email })
+      .then((user) => {
+        if (!user) {
+          req.flash("error", "No account with that email found.");
+          return res.redirect("/reset")
+        }
+        user.resetToken = token;
+        user.resetTokenExpiration = Date.now() + 3600000;
+        user.save().then((result) => {
+          var mailOptions = {
+            from: process.env.EMAIL_ADDRESS,
+            to: email,
+            subject: "Reset your password for BookStore",
+            html: `<p>Hello,</p>
+          
+          <p>Follow this link to reset your BookStore password for your ${
+            email.split("@")[0]
+          } account.</p>
+          
+          <p>http://localhost:5000/new-password/${token}</p>
+          
+          <p>If you didn’t ask to reset your password, you can ignore this email.</p>
+          
+          Thanks,<br>
+          
+          Your BookStore team`,
+          };
+  
+          transporter.sendMail(mailOptions, (error, info) => {
+            console.log(error ? error : `Email sent: ${info.response}`);
+          });
+          res.redirect("/login");
+        });
+      })
+      .catch((err) => console.log(err));
+  });
+};
+
+getNewPassword = (req, res, next) => {
+  if (req.session.isLoggedIn) return res.redirect("/products");
+  const { resetToken } = req.params;
+  User.findOne({ resetToken, resetTokenExpiration: { $gt: Date.now() } })
+    .then((user) => {
+      if (!user) {
+        req.flash("error", "Error has Occured. Please try Again later..");
+        return res.redirect("/reset");
+      }
+      res.render("auth/new-password", {
+        path: "/new-password",
+        pageTitle: "New Password",
+        errorMessage: req.flash("error"),
+        userId: user._id.toString(),
+        resetToken,
+      });
+    })
+    .catch((err) => console.log(err));
+};
+postNewPassword = (req, res, next) => {
+  const { password, confirmPassword, userId, resetToken } = req.body;
+  let resetUser;
+  if (!password || password !== confirmPassword) {
+    req.flash("error", "Incorrect form submission.");
+    return res.redirect(`/new-password/${resetToken}`);
+  }
+  User.findOne({
+    _id: userId,
+    resetToken,
+    resetTokenExpiration: { $gt: Date.now() },
+  })
+    .then((user) => {
+      resetUser = user;
+      return bcrypt.hash(password, 12);
+    })
+    .then((hashedPassword) => {
+      resetUser.password = hashedPassword;
+      resetUser.resetTokenExpiration = undefined;
+      resetUser.resetToken = undefined;
+      return resetUser.save()
+    }).then(result => res.redirect('/login'))
     .catch((err) => console.log(err));
 };
 
@@ -79,4 +204,8 @@ module.exports = {
   postLogout,
   getSignup,
   postSignup,
+  getReset,
+  postReset,
+  getNewPassword,
+  postNewPassword,
 };

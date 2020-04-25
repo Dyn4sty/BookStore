@@ -10,6 +10,8 @@ const userSchema = new Schema({
     type: String,
     required: true,
   },
+  resetToken: String,
+  resetTokenExpiration: Date,
   cart: {
     products: [
       {
@@ -25,12 +27,11 @@ const userSchema = new Schema({
   },
 });
 
-
 // Cart Methods //
-userSchema.methods.clearCart = function() {
+userSchema.methods.clearCart = function () {
   this.cart.products = [];
-  return this.save()
-}
+  return this.save();
+};
 userSchema.methods.addToCart = function (cartItemToAdd) {
   // if (!cartItemToAdd) return res.redirect("/cart");
   const existingCartItem = this.cart.products.find(
